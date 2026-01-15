@@ -3,7 +3,7 @@ import { signOut } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, addDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
-import { LogOut, Users, ShieldAlert, CheckCircle, Crown, Trash2, Plus, UploadCloud, X, BellRing, Send, AlertTriangle, Battery, BatteryCharging, Wifi, Smartphone, Signal } from 'lucide-react';
+import { LogOut, Users, ShieldAlert, CheckCircle, Crown, Trash2, Plus, UploadCloud, X, BellRing, Send, AlertTriangle, Battery, BatteryCharging, Wifi, Signal } from 'lucide-react';
 import LiveMap from '../components/LiveMap';
 import { sendBroadcast } from '../services/NotificationService';
 
@@ -32,7 +32,6 @@ export default function DashboardScreen() {
                     const timeDiff = new Date().getTime() - (user.lastLocation.timestamp?.toMillis() || 0);
                     if (timeDiff < 5 * 60 * 1000) {
                         setSosAlert({ email: user.email, ...user.lastLocation });
-                        try { const audio = new Audio('https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg'); audio.play().catch(() => {}); } catch(e) {}
                     }
                 }
             });
@@ -50,7 +49,21 @@ export default function DashboardScreen() {
 
     const handleLogout = () => { signOut(auth); navigate('/'); };
     const handleRoleChange = async (id: string, email: string, newRole: string) => { if (email === SUPER_ADMIN_EMAIL) { alert("⛔ HATA: Patron hesabı değiştirilemez!"); return; } await updateDoc(doc(db, 'users', id), { role: newRole }); };
-    const approveUser = async (id: string) => { if (window.confirm('Onaylıyor musun?')) await updateDoc(doc(db, 'users', id), { isApproved: true }); };
+    
+    // 🔥 GÜNCELLENEN ONAY FONKSİYONU (MAİL ATAR)
+    const approveUser = async (id: string, email: string) => {
+        if (window.confirm('Bu kullanıcıyı onaylıyor musun?')) {
+            await updateDoc(doc(db, 'users', id), { isApproved: true });
+            
+            // 🔥 MAİL GÖNDERME PENCERESİNİ AÇAR
+            if (window.confirm('Kullanıcıya "Giriş Yapabilirsin" maili gönderilsin mi?')) {
+                const subject = "LetterChat Hesap Onayı";
+                const body = "Hesabınız başarıyla onaylandı. Uygulamaya giriş yapabilirsiniz.";
+                window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+            }
+        }
+    };
+
     const togglePremium = async (id: string, email: string, status: boolean) => { if (email === SUPER_ADMIN_EMAIL) { alert("⛔ Patron zaten sonsuz Premium'dur!"); return; } await updateDoc(doc(db, 'users', id), { isPremium: !status }); };
     const deleteUser = async (id: string, email: string) => { if (email === SUPER_ADMIN_EMAIL) { alert("⛔ SAKIN! Patron hesabı silinemez!"); return; } if (window.confirm('DİKKAT: Kullanıcı tamamen silinecek! Emin misin?')) { await deleteDoc(doc(db, 'users', id)); } };
     const addSingleWord = async (e: React.FormEvent) => { e.preventDefault(); if (!newWord.trim()) return; try { await addDoc(collection(db, 'banned_words'), { word: newWord.toLowerCase().trim(), createdAt: serverTimestamp() }); setNewWord(''); } catch (error) { alert('Hata oluştu'); } };
@@ -108,7 +121,7 @@ export default function DashboardScreen() {
                                 <thead>
                                     <tr style={{ backgroundColor: '#f8f9fa', textAlign: 'left' }}>
                                         <th style={styles.th}>Kullanıcı</th>
-                                        <th style={styles.th}>Cihaz Durumu 📱</th> {/* 🔥 YENİ */}
+                                        <th style={styles.th}>Cihaz Durumu 📱</th>
                                         <th style={styles.th}>Rol</th>
                                         <th style={styles.th}>Durum</th>
                                         <th style={styles.th}>İşlemler</th>
@@ -128,7 +141,6 @@ export default function DashboardScreen() {
                                                     <div style={{ fontSize: '12px', color: '#888' }}>{user.uid}</div>
                                                     <div style={{ fontSize: '11px', color: '#666' }}>{user.lastLocation?.device || 'Bilinmiyor'}</div>
                                                 </td>
-                                                {/* 🔥 YENİ PİL VE DURUM ALANI */}
                                                 <td style={styles.td}>
                                                     <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
                                                         <div title={isCharging ? "Şarj Oluyor" : "Pil"} style={{display:'flex', alignItems:'center', gap:'5px', color: battery < 20 ? 'red' : 'green'}}>
@@ -150,7 +162,9 @@ export default function DashboardScreen() {
                                                 <td style={styles.td}>{user.isApproved ? <span style={{ color: 'green' }}>Aktif</span> : <span style={{ color: 'orange' }}>Bekliyor</span>}</td>
                                                 <td style={styles.td}>
                                                     <div style={{ display: 'flex', gap: '10px' }}>
-                                                        {!user.isApproved && <button onClick={() => approveUser(user.id)} style={styles.btnGreen}><CheckCircle size={16} /></button>}
+                                                        {/* 🔥 BURASI GÜNCELLENDİ: ARTIK EMAİL DE GÖNDERİYOR */}
+                                                        {!user.isApproved && <button onClick={() => approveUser(user.id, user.email)} style={styles.btnGreen}><CheckCircle size={16} /></button>}
+                                                        
                                                         <button onClick={() => togglePremium(user.id, user.email, user.isPremium)} style={{ ...styles.btnGold, opacity: isSuperAdmin ? 0.5 : 1 }} disabled={isSuperAdmin}><Crown size={16} /></button>
                                                         <button onClick={() => deleteUser(user.id, user.email)} style={{ ...styles.btnRed, opacity: isSuperAdmin ? 0.5 : 1 }} disabled={isSuperAdmin}><Trash2 size={16} /></button>
                                                     </div>
@@ -163,7 +177,49 @@ export default function DashboardScreen() {
                         </div>
                     </>
                 )}
-                {/* DİĞER TABLAR (Words, Broadcast) AYNEN DURUYOR... */}
+                {/* Diğer Tablar (Words, Broadcast) kodun devamında aynı... */}
+                {activeTab === 'words' && (
+                    <>
+                        <div style={styles.header}><h1>Sansür Sistemi 🤬</h1></div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                            <div style={styles.tableContainer}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                                    <h3>Aktif Kelimeler ({words.length})</h3>
+                                    <form onSubmit={addSingleWord} style={{ display: 'flex', gap: '5px' }}>
+                                        <input style={styles.input} placeholder="Kelime ekle..." value={newWord} onChange={e => setNewWord(e.target.value)} />
+                                        <button type="submit" style={styles.btnGreen}><Plus size={18} /></button>
+                                    </form>
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', maxHeight: '400px', overflowY: 'auto' }}>
+                                    {words.map(w => (
+                                        <div key={w.id} style={styles.wordChip}>
+                                            {w.word}
+                                            <X size={14} style={{ cursor: 'pointer' }} onClick={() => deleteWord(w.id)} />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div style={styles.tableContainer}>
+                                <h3>🚀 Toplu Yükleme</h3>
+                                <textarea style={styles.textarea} rows={10} placeholder="Virgülle ayırarak girin..." value={bulkList} onChange={e => setBulkList(e.target.value)} />
+                                <button onClick={handleBulkUpload} style={{ ...styles.btnBlue, width: '100%', marginTop: '10px' }} disabled={loading}>{loading ? '...' : <><UploadCloud size={18} /> Yükle</>}</button>
+                            </div>
+                        </div>
+                    </>
+                )}
+                {activeTab === 'broadcast' && (
+                    <>
+                         <div style={styles.header}><h1>📢 Toplu Duyuru Merkezi</h1></div>
+                         <div style={styles.tableContainer}>
+                            <p style={{marginBottom: '15px', color: '#555'}}>Bu alandan göndereceğiniz mesaj, uygulaması yüklü olan <b>{users.length}</b> kullanıcının telefonuna "Bildirim" olarak gidecektir.</p>
+                            <label style={{fontWeight: 'bold', display:'block', marginBottom:'5px'}}>Başlık</label>
+                            <input style={{...styles.input, width: '100%', marginBottom: '15px'}} placeholder="Örn: Sistem Bakımı" value={broadcastTitle} onChange={e => setBroadcastTitle(e.target.value)} />
+                            <label style={{fontWeight: 'bold', display:'block', marginBottom:'5px'}}>Mesaj İçeriği</label>
+                            <textarea style={styles.textarea} rows={5} placeholder="Duyurunuzu buraya yazın..." value={broadcastBody} onChange={e => setBroadcastBody(e.target.value)} />
+                            <button style={{...styles.btnBlue, marginTop: '20px', width: '100%', fontSize: '18px'}} onClick={handleSendBroadcast}><Send size={20} /> GÖNDER</button>
+                         </div>
+                    </>
+                )}
             </div>
         </div>
     );
