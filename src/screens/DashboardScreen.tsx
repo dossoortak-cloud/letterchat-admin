@@ -4,7 +4,7 @@ import { auth, db } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, addDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { LogOut, Users, ShieldAlert, CheckCircle, Crown, Trash2, Plus, UploadCloud, X, BellRing, Send, AlertTriangle, Battery, BatteryCharging, Wifi, Signal } from 'lucide-react';
-import LiveMap from '../components/LiveMap';
+import LiveMap from './components/LiveMap';
 import { sendBroadcast } from '../services/NotificationService';
 
 const SUPER_ADMIN_EMAIL = "letterchats@gmail.com";
@@ -253,3 +253,4 @@ const styles: any = {
     btnMap: { padding: '15px 30px', fontSize: '18px', cursor: 'pointer', border: 'none', borderRadius: '10px', backgroundColor: 'white', color: '#c0392b', fontWeight: 'bold' },
     btnCloseSOS: { padding: '15px 30px', fontSize: '18px', cursor: 'pointer', border: '2px solid white', borderRadius: '10px', backgroundColor: 'transparent', color: 'white', fontWeight: 'bold' }
 };
+
